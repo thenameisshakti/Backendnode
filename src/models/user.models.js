@@ -52,4 +52,43 @@ const userSchema = new Schema(
     }
 )
 
+userSchema.pre("save",async function(next) {
+    if (!this.isModified("password")) return next()
+    this.password = bcrypt.hash(this.password, 10)
+    next()
+} ) // don't use the call back function 
+
+userSchema.methods.isPasswordCorrect =   async function (password){
+    return await bcrypt.compare(password,this.password)
+}
+
+userSchema.methods.generateAccessToken = function (){
+    jwt.sign(
+        {
+        _id : this._id,
+        email : this.email,
+        username : this.username,              
+        fullName : this.fullName                    //payload =  this.[anythings come form the database]
+
+        },
+        process.env.ACCESS_TOKEN_SECRET,
+        {
+            expiresIn: process.env.ACCESS_TOKEN_EXPIRE
+        }
+    )
+}
+
+userSchema.methods.generateRefreshToken = function(){
+    return jwt.sign(
+        {
+            _id: this._id,
+            
+        },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+        }
+    )
+}
+userSchema.methods.generateAccessToken = function (){}  
 export const User = mongoose.model("User ", userSchema)
