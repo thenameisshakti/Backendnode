@@ -21,7 +21,7 @@ import userRouter from "./routes/user.routers.js"
 //routes decteration  the syntax is different is here is because 
 // we have create the routes different 
 
-app.use("api/v1/users",userRouter)   // it act as prefix  // http://localhost:8000/api/v1/users/register
+app.use("/api/v1/users", userRouter)   // it act as prefix  // http://localhost:8000/api/v1/users/register
 
 
 export default app
