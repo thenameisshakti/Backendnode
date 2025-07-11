@@ -4,9 +4,9 @@ import {User} from "../models/user.models.js"
 import uploadOnCloudinary from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
-import mongoose from "mongoose"
+import { use } from "react"
 
-const generateAccessAndRefershToken = async (userId){
+const generateAccessAndRefershToken = async (userId) => {
   try{
      const user = await User.findById(userId)
      const refreshToken =user.generateRefreshToken ()
@@ -115,8 +115,9 @@ const loginUser = asyncHandler(async (req,res) => {
   //send cookie
 
   const {email,username,password} = req.body
+  console.log(email)
 
-  if (!username || !email){
+  if (!username && !email){
     throw new ApiError(400 , "username or password is required")
 
   } 
@@ -139,8 +140,8 @@ const loginUser = asyncHandler(async (req,res) => {
  const {accessToken,refreshToken} = await generateAccessAndRefershToken(user._id)
 
  // think to understand 
- const loggedInUser = User.findById(user._id).
- select("-password -refershToken")
+ const loggedInUser = await User.findById(user._id).
+ select("-password -refreshToken")
 
  const options ={ 
   httpOnly : true,
@@ -151,7 +152,7 @@ const loginUser = asyncHandler(async (req,res) => {
  return res
  .status(200)
  .cookie("accessToken", accessToken, options)
- .cookie("refershToken", refereshToken,options)
+ .cookie("refreshToken", refreshToken,options)
  .json(
   new ApiResponse(
     200,
@@ -181,6 +182,8 @@ const logoutUser = asyncHandler( async (req, res) => {
 
   }
 
+  
+
   return  res
   .status(200)
   .clearCookies("accessToken",options)
@@ -190,5 +193,58 @@ const logoutUser = asyncHandler( async (req, res) => {
   
 })
 
+
+const refreshAccessToken = asyncHandler(async (req,res) => {
+  const incommingRefreshToken = req.cookies.refereshToken || req.body.refreshToken
+
+  if (!incommingRefreshToken){
+    throw new ApiError (401, "Unauthorised request")
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incommingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    )
+  
+    const user =await User.findById (decodedToken?._id)
+  
+    if (!user) {
+      throw new ApiError(401, "in valid referesh token")
+    }
+    
+  
+    // at this point you should know about which token is what and its comes form where
+    if (incommingRefreshToken  !== user?.refereshToken){
+      throw new ApiError (401, "referesh token is expired or used")
+    }
+  
+    const options = {
+      httpOnly: true,
+      secure: true 
+    }
+  
+    const {accessToken , newrefereshToken} = await generateAccessAndRefershToken(user._id)
+  
+    return res
+    .status(200)
+    .cookie("accessToken",accessToken,options)
+    .cookie("refreshToken", newrefereshToken,options)
+    .json(
+      new ApiResponse(
+        200,
+        {accessToken,refreshToken: newrefereshToken},
+        "Acces token refereshed"
+      )
+    )
+  
+  } catch (error) {
+    throw new ApiError(401,error?.message || "invalid referesh token")
+    
+  }
+
+   
+})
+
 export default registerUser 
-export {loginUser,logoutUser}
+export {loginUser,logoutUser,refreshAccessToken }
