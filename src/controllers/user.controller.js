@@ -47,7 +47,7 @@ const registerUser = asyncHandler( async (req,res)  => {
 
         // images by mullter 
 
-        const avatarLocalPath = req.files?.avatar[0]?.path
+        const avatarLocalPath = req.files?.avatar[0]?.path // multiple option to upload files thats why files
         //const coverImageLocalPath = req.files?.coverImages[0]?.path
 
         let coverImageLocalPath;
@@ -246,5 +246,130 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
    
 })
 
+const changeCurrentPassword = asyncHandler( async (req,res) => {
+  const {oldPassword , newPassword } = req.body
+
+  // imp concept think 
+  // if he change his pass word means in is logged in : this we got to know form middleware req.user
+
+  const user = await User.findById( req.user?._id)
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+  if (!isPasswordCorrect) {
+    throw new ApiError(400, "invalid password ")
+    
+  }
+
+   user.password = newPassword
+   await user.save({validateBeforeSaves: false})
+
+   return res
+   .status(200)
+   .json(new ApiResponse (200,{}, "password has been changed"))
+})
+
+const getCurrentUser = asyncHandler( async (req, res) => {
+  return res
+  .status(200)
+  .json(200,req.user, "current user fetch successfully")
+})
+
+const updateAccount = asyncHandler(async (req,res) => {
+  const { fullName, email} = req.body
+
+  if(!fullName || !email){
+    throw new ApiError (400 , "all field are required")
+
+  }
+
+  const user = User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      // mongodb operator 
+      $set : {
+        fullName,
+        email: email,
+      }
+    },
+    {new: true}
+  ).select("-password")
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200, user,"account details updated successfully"))
+
+
+
+})
+
+const updateUserAvatar = asyncHandler(async (req,res) => {
+  const avatarLocalPath = req.file?.path  //no need to get multiflies as per need here
+  if (!avatarLocalPath){
+    throw new ApiError(400, "avatar file is missing")
+  }
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+  if (!avatar.url){
+    throw new ApiError (400, "Error  while uploading on avatar")
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar:avatar.url
+
+      }
+    },
+    {new:true}
+  ).select("-password")
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200, user,"avatar upladed successfully")
+  )
+
+})
+
+const updateUserCoverImage = asyncHandler(async (req,res) => {
+  const coverImageLocalPath = req.file?.path  //no need to get multiflies as per need here
+  if (!coverImageLocalPath){
+    throw new ApiError(400, "Cover Image file is missing")
+  }
+
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+  if (!coverImage.url){
+    throw new ApiError (400, "Error  while uploading on Cover Image")
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage:coverImage.url
+
+      }
+    },
+    {new:true}
+  ).select("-password")
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200, user,"cover Image upladed successfully")
+  )
+})
+
 export default registerUser 
-export {loginUser,logoutUser,refreshAccessToken }
+export {
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  getCurrentUser,
+  changeCurrentPassword ,
+  updateAccount,
+  updateUserAvatar,
+  updateUserCoverImage}
